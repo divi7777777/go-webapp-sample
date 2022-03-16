@@ -1,0 +1,47 @@
+trigger: 
+ - master
+variables:
+  tag: '$(Build.BuildId)'
+
+pool:
+   vmImage: 'ubuntu-latest'
+steps:
+- task: GoTool@0
+  displayName: 'Use Go 1.10'
+- task: Go@0
+  displayName: 'go get'
+  inputs:
+    arguments: '-d'
+- task: Go@0
+  displayName: 'go build'
+  inputs:
+    command: build
+    arguments: '-o "$(System.TeamProject).exe"'
+- task: Go@0
+  inputs:
+    command: 'test'
+    arguments: '-v'
+- task: Docker@2
+  inputs:
+    containerRegistry: 'JFROG_BUILD'
+    repository: 'go/image'
+    command: 'build'
+    Dockerfile: '**/Dockerfile'
+    tags: '$(tag)'
+    addPipelineData: false
+    addBaseImageData: false
+- task: ArtifactoryDocker@1
+  inputs:
+    command: 'push'
+    artifactoryService: 'JFROG'
+    targetRepo: 'go'
+    imageName: 'demo77.jfrog.io/go/image:$(tag)'
+    collectBuildInfo: true
+    buildName: '$(Build.DefinitionName)'
+    buildNumber: '$(Build.BuildNumber)'
+- task: CopyFiles@2
+  inputs:
+    TargetFolder: '$(Build.ArtifactStagingDirectory)'
+- task: PublishBuildArtifacts@1
+  inputs:
+     artifactName: drop
